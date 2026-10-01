@@ -143,6 +143,21 @@
  .bottom{width:max-content;max-width:calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));right:auto}
  #tooltip{display:none!important}
 }
+
+/* Reserve a compact audio shelf between the reader and phone toolbar. */
+@media(max-width:760px),(orientation:landscape) and (max-height:600px){
+ .narration-player{width:min(360px,calc(100vw - 32px));padding:7px 9px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;border-radius:10px}
+ .narration-player[hidden]{display:none}
+ .narration-player-heading{grid-column:1/-1;gap:8px}
+ .narration-title{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+ .narration-close{padding:1px 7px!important}
+ .narration-controls{grid-column:1;grid-row:2;justify-content:flex-start;margin:0;gap:5px}
+ .narration-controls button{padding:3px 7px}
+ .narration-time{grid-column:2;grid-row:2;align-self:center;margin:0;white-space:nowrap}
+ .narration-progress{grid-column:1/-1;grid-row:3;height:12px}
+ body.narration-active #reader[open]{bottom:var(--audio-reader-bottom,160px);max-height:calc(100dvh - 120px - var(--audio-reader-bottom,160px))}
+}
+@media(orientation:landscape) and (max-height:600px){body.narration-active #reader[open]{max-height:calc(100dvh - 54px - var(--audio-reader-bottom,160px))}}
 </style></head><body>
 <main id="scene" tabindex="0" aria-label="Interactive city. Drag to orbit, scroll to zoom, right drag to pan. W A S D move the camera, Shift moves faster. Arrow keys orbit, plus and minus zoom."></main>
 <header><div class="brand"><div class="mark">✳</div><div><strong>THE ANDROMEDA PROJECT</strong><small>ANDROMEDA · EIGHT RINGS · 02</small></div></div><button id="reference" class="concept-launch">Concept image</button><div class="topbar panel"><span class="status">EXPLORABLE CONCEPT</span><button id="mobileToggle">Systems</button><button id="export">Export 4K ↗</button></div></header>
@@ -1135,18 +1150,21 @@ function setupReadAloud(){
  dragHandle.tabIndex=0;dragHandle.title='Drag to move; use arrow keys when focused';
  let playerPosition=null,playerDrag=null;
  try{const saved=JSON.parse(localStorage.getItem('andromeda-player-position'));if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.y))playerPosition=saved;}catch{}
- function positionPlayer(x,y){const bounds=player.getBoundingClientRect();playerPosition={x:Math.max(8,Math.min(x,window.innerWidth-bounds.width-8)),y:Math.max(8,Math.min(y,window.innerHeight-bounds.height-8))};player.style.left=playerPosition.x+'px';player.style.top=playerPosition.y+'px';player.style.right='auto';player.style.bottom='auto';}
+ function positionPlayer(x,y){const bounds=player.getBoundingClientRect();if(phoneLayout()){const bar=document.querySelector('.bottom').getBoundingClientRect();y=bar.top-bounds.height-8;document.documentElement.style.setProperty('--audio-reader-bottom',(innerHeight-y+8)+'px');}playerPosition={x:Math.max(8,Math.min(x,window.innerWidth-bounds.width-8)),y:Math.max(8,Math.min(y,window.innerHeight-bounds.height-8))};player.style.left=playerPosition.x+'px';player.style.top=playerPosition.y+'px';player.style.right='auto';player.style.bottom='auto';}
  function savePlayerPosition(){try{localStorage.setItem('andromeda-player-position',JSON.stringify(playerPosition));}catch{}}
  dragHandle.addEventListener('pointerdown',event=>{if(event.button!==0)return;const bounds=player.getBoundingClientRect();playerDrag={id:event.pointerId,x:event.clientX-bounds.left,y:event.clientY-bounds.top};dragHandle.setPointerCapture(event.pointerId);event.preventDefault();});
  dragHandle.addEventListener('pointermove',event=>{if(playerDrag?.id!==event.pointerId)return;positionPlayer(event.clientX-playerDrag.x,event.clientY-playerDrag.y);});
  const endPlayerDrag=()=>{if(playerDrag){playerDrag=null;savePlayerPosition();}};
  dragHandle.addEventListener('pointerup',endPlayerDrag);dragHandle.addEventListener('pointercancel',endPlayerDrag);dragHandle.addEventListener('lostpointercapture',endPlayerDrag);
  dragHandle.addEventListener('keydown',event=>{const directions={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]},direction=directions[event.key];if(!direction)return;event.preventDefault();event.stopPropagation();const bounds=player.getBoundingClientRect(),step=event.shiftKey?30:10;positionPlayer(bounds.left+direction[0]*step,bounds.top+direction[1]*step);savePlayerPosition();});
- window.addEventListener('resize',()=>{if(!player.hidden&&playerPosition)positionPlayer(playerPosition.x,playerPosition.y);});
+ function fitPlayer(){if(player.hidden)return;positionPlayer(playerPosition?.x??(innerWidth-player.offsetWidth)/2,playerPosition?.y??(innerHeight-player.offsetHeight-24));}
+ window.addEventListener('resize',fitPlayer);
+ new ResizeObserver(fitPlayer).observe(player);
+ new ResizeObserver(fitPlayer).observe(document.querySelector('.bottom'));
  const pauseButton=player.querySelector('.narration-pause'),progress=player.querySelector('.narration-progress'),timeLabel=player.querySelector('.narration-time');
  const clock=n=>Math.floor(n/60)+':'+String(Math.floor(n%60)).padStart(2,'0');
  function updatePlayer(){if(!sectionAudio)return;const duration=sectionAudio.duration,ready=Number.isFinite(duration)&&duration>0;progress.disabled=!ready;progress.max=ready?duration:1;progress.value=sectionAudio.currentTime||0;timeLabel.textContent=ready?clock(sectionAudio.currentTime)+' / '+clock(duration):'Loading audio…';pauseButton.textContent=sectionAudio.paused?'Play':'Pause';player.querySelectorAll('.narration-back,.narration-forward').forEach(b=>b.disabled=!ready);}
- function showPlayer(button,recorded){document.body.appendChild(player);player.hidden=false;player.querySelector('.narration-title').textContent=button.closest('.philosophy-section')?.querySelector('summary')?.textContent.replace('⌄','').trim()||button.dataset.narrationTitle||'Read aloud';pauseButton.textContent='Pause';progress.hidden=!recorded;progress.disabled=true;player.querySelectorAll('.narration-back,.narration-forward').forEach(b=>b.disabled=true);timeLabel.textContent=recorded?'Loading audio…':'15-second seeking is available for recorded narration.';if(playerPosition)positionPlayer(playerPosition.x,playerPosition.y);}
+ function showPlayer(button,recorded){document.body.appendChild(player);player.hidden=false;document.body.classList.add('narration-active');player.querySelector('.narration-title').textContent=button.closest('.philosophy-section')?.querySelector('summary')?.textContent.replace('⌄','').trim()||button.dataset.narrationTitle||'Read aloud';pauseButton.textContent='Pause';progress.hidden=!recorded;progress.disabled=true;player.querySelectorAll('.narration-back,.narration-forward').forEach(b=>b.disabled=true);timeLabel.textContent=recorded?'Loading audio…':'15-second seeking is available for recorded narration.';fitPlayer();}
  function seekAudio(delta){if(sectionAudio&&Number.isFinite(sectionAudio.duration)){sectionAudio.currentTime=Math.max(0,Math.min(sectionAudio.duration,sectionAudio.currentTime+delta));updatePlayer();}}
  player.querySelector('.narration-back').onclick=()=>seekAudio(-15);
  player.querySelector('.narration-forward').onclick=()=>seekAudio(15);
@@ -1154,7 +1172,7 @@ function setupReadAloud(){
  pauseButton.onclick=()=>{if(sectionAudio){if(sectionAudio.ended){activeButton?.click();return;}if(sectionAudio.paused)sectionAudio.play().catch(()=>{timeLabel.textContent='Unable to resume audio.';});else sectionAudio.pause();}else if(supported&&activeButton){if(window.speechSynthesis.paused){window.speechSynthesis.resume();pauseButton.textContent='Pause';}else{window.speechSynthesis.pause();pauseButton.textContent='Play';}}};
  player.querySelector('.narration-close').onclick=()=>stop();
 
- function reset(){player.hidden=true;if(activeButton){activeButton.innerHTML=play;activeButton.setAttribute('aria-pressed','false');activeButton.setAttribute('aria-label','Read aloud');activeButton.title='Read aloud'}activeButton=null;utterance=null}
+ function reset(){player.hidden=true;document.body.classList.remove('narration-active');if(activeButton){activeButton.innerHTML=play;activeButton.setAttribute('aria-pressed','false');activeButton.setAttribute('aria-label','Read aloud');activeButton.title='Read aloud'}activeButton=null;utterance=null}
  function stop(){serial++;if(sectionAudio){sectionAudio.pause();sectionAudio.removeAttribute('src');sectionAudio.load();sectionAudio=null;}if(supported)window.speechSynthesis.cancel();reset()}
  function buttonFor(text,clips=null){if(!clips?.length)return null;const button=document.createElement('button');button.type='button';button.className='read-aloud';button.innerHTML=play;button.setAttribute('aria-label','Read aloud');button.setAttribute('aria-pressed','false');button.title='Play recording';button.disabled=false;
   button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();stop();const id=serial;activeButton=button;button.innerHTML=stopIcon;button.setAttribute('aria-label','Restart recording');button.setAttribute('aria-pressed','true');button.title='Restart recording';showPlayer(button,!!clips?.length);if(clips?.length){let part=0;const playPart=()=>{if(id!==serial)return;sectionAudio=new Audio();sectionAudio.preload='none';sectionAudio.src=clips[part];for(const event of ['loadedmetadata','timeupdate','play','pause'])sectionAudio.addEventListener(event,updatePlayer);sectionAudio.onended=()=>{if(id!==serial)return;if(++part<clips.length)playPart();else{updatePlayer();pauseButton.textContent='Replay';status.textContent='Reading finished.';}};sectionAudio.onerror=()=>{if(id===serial){timeLabel.textContent='Recording could not be played.';status.textContent=timeLabel.textContent;}};sectionAudio.play().catch(()=>{if(id===serial){timeLabel.textContent='Audio playback was blocked. Press Play to retry.';status.textContent=timeLabel.textContent;}});};status.textContent='Reading with BritGirl.';playPart();return;}});return button;
