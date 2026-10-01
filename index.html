@@ -627,7 +627,7 @@ function init(){scene=new THREE.Scene();scene.background=new THREE.Color(0xbad4d
  // Keep the photograph's 2.5:1 proportions: four horizontal tiles over a 36-degree vertical band.
  // Bake mirrored/clamped UVs into geometry instead of relying on repeating non-power-of-two textures.
  const backdropUV=backdropGeometry.attributes.uv;
- for(let i=0;i<backdropUV.count;i++){const u=backdropUV.getX(i)*4,t=u%2;backdropUV.setXY(i,t<=1?t:2-t,THREE.MathUtils.clamp(backdropUV.getY(i)*5-1.45,0,1));}
+ for(let i=0;i<backdropUV.count;i++){const u=backdropUV.getX(i)*4,t=u%2;backdropUV.setXY(i,t<=1?t:2-t,THREE.MathUtils.clamp(backdropUV.getY(i)*5-2.05,0,1));}
  const backdropMaterial=new THREE.MeshBasicMaterial({color:0xa6d6f1,side:THREE.BackSide,fog:false,toneMapped:false,depthWrite:false});
  const backdrop=new THREE.Mesh(backdropGeometry,backdropMaterial);
  backdrop.name='Mountain panorama';backdrop.scale.set(1/6.3,1/2.1,1/6.3);backdrop.rotation.y=Math.PI/2;backdrop.renderOrder=-1;scene.add(backdrop);
@@ -1751,6 +1751,7 @@ function createSectionGallery(key,index=0,full=false){
 function showSectionGallery(key,index){
  let viewer=document.getElementById('sectionGalleryViewer');if(!viewer){viewer=document.createElement('dialog');viewer.id='sectionGalleryViewer';document.body.appendChild(viewer);viewer.addEventListener('click',e=>{if(e.target===viewer)viewer.close();});}viewer.setAttribute('aria-label',sectionPhotoNames[key]+' gallery');viewer.replaceChildren(createSectionGallery(key,index,true));viewer.showModal();
 }
+
 
 
 </script></body></html>
