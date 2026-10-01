@@ -610,9 +610,9 @@ function init(){scene=new THREE.Scene();scene.background=new THREE.Color(0xbad4d
  grass.map=makeTexture('grass');stone.map=null;// Land ends at the shoreline: avoid overlapping almost-coplanar land and lake surfaces.
  add(makeGrassyTerrain(),grass,0,-.18,0).castShadow=false;
  // Broad meadow outside the city boundary, tapering down toward the water.
- const meadow=new THREE.RingGeometry(390,510,512,16).rotateX(-Math.PI/2);
+ const meadow=new THREE.RingGeometry(390,410,512,8).rotateX(-Math.PI/2);
  const meadowPositions=meadow.attributes.position;
- for(let i=0;i<meadowPositions.count;i++){const r=Math.hypot(meadowPositions.getX(i),meadowPositions.getZ(i));meadowPositions.setY(i,-.18-2.8*THREE.MathUtils.smoothstep(r,485,510));}
+ for(let i=0;i<meadowPositions.count;i++){const r=Math.hypot(meadowPositions.getX(i),meadowPositions.getZ(i));meadowPositions.setY(i,-.18-2.8*THREE.MathUtils.smoothstep(r,400,410));}
  meadow.computeVertexNormals();add(meadow,grass).castShadow=false;
  const platformSide=new THREE.MeshStandardMaterial({color:0x405963,roughness:.5,metalness:.35});
  add(new THREE.CylinderGeometry(390,389,7,512,1,true),platformSide,0,-3.75,0);
@@ -622,19 +622,12 @@ function init(){scene=new THREE.Scene();scene.background=new THREE.Color(0xbad4d
  // A feathered, additive halo surrounds the circular rim.
  for(let i=0;i<12;i++){const halo=new THREE.MeshBasicMaterial({color:0x159cff,transparent:true,opacity:.15*(1-i/12)**2,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false,side:THREE.DoubleSide});ring(390.4+i*.45,.55,-.08,halo,512);}
  const waterMat=reflectiveWater({color:0x619caa});
- const outerWaterMat=reflectiveWater({color:0x124d91,metalness:.25,roughness:.22});
- water=add(new THREE.RingGeometry(390.1,1900,512).rotateX(-Math.PI/2),outerWaterMat,0,-3.5,0);water.castShadow=false;
- // A transparent blue horizon haze fades upward beyond the outer water edge.
- const horizonCanvas=document.createElement('canvas');horizonCanvas.width=4;horizonCanvas.height=256;
- const horizonContext=horizonCanvas.getContext('2d'),horizonGradient=horizonContext.createLinearGradient(0,0,0,256);
- horizonGradient.addColorStop(0,'rgba(32,160,255,0)');horizonGradient.addColorStop(.5,'rgba(32,160,255,0.12)');horizonGradient.addColorStop(1,'rgba(24,154,255,0.85)');
- horizonContext.fillStyle=horizonGradient;horizonContext.fillRect(0,0,4,256);
- const horizonTexture=new THREE.CanvasTexture(horizonCanvas);horizonTexture.colorSpace=THREE.SRGBColorSpace;
- const horizonMaterial=new THREE.MeshBasicMaterial({map:horizonTexture,transparent:true,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,fog:false});
- const horizonGlow=add(new THREE.CylinderGeometry(1910,1910,260,256,1,true),horizonMaterial,0,126.5,0);horizonGlow.castShadow=false;horizonGlow.receiveShadow=false;
-
- // Hills on the distant shore.
- for(let i=0;i<27;i++){const hill=new THREE.SphereGeometry(1,20,12);batch(hill,new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(.32,.12,rand(.38,.52)),roughness:1}),-1350+i*105,-20,-rand(1150,1600),rand(90,190),rand(70,180),rand(130,230))}
+ // A fixed, inward-facing panorama surrounds the city and responds naturally to orbiting.
+ const panorama=new THREE.TextureLoader().load('images/mountain-panorama.png',()=>{reflectionLighting=-1;});
+ panorama.colorSpace=THREE.SRGBColorSpace;
+ panorama.wrapS=THREE.MirroredRepeatWrapping;panorama.repeat.set(4,2);panorama.offset.y=-.35;
+ const backdrop=new THREE.Mesh(new THREE.SphereGeometry(12000,96,48),new THREE.MeshBasicMaterial({map:panorama,side:THREE.BackSide,fog:false,toneMapped:false,depthWrite:false}));
+ backdrop.name='Mountain panorama';backdrop.scale.set(1/6.3,1/2.1,1/6.3);backdrop.rotation.y=Math.PI/2;backdrop.renderOrder=-1;scene.add(backdrop);
  buildSocietyScene(waterMat);
  prepareDaylightScene();systems.housing.rings=[4,5];systems.nature.rings=[6];systems.agriculture.rings=[7];createOverlays();expandFamilyCity();applyOperationalCopy();setupWaterReflections();makeUI();bind();bindCameraMovement();bindSociety();setLighting(90);setLightingQuality('high');applySystem('overview');ready=true;$('loading').style.display='none';animate();
 }
@@ -1073,6 +1066,7 @@ function setLighting(v){
 }
 function prepareDaylightScene(){
  const remove=[];scene.traverse(o=>{
+  if(o.name==='Mountain panorama')return;
   if(o.isLight&&o!==sun&&o!==hemi){remove.push(o);return;}
   if(!o.material)return;const materials=Array.isArray(o.material)?o.material:[o.material];
   if(materials.some(m=>m.blending===THREE.AdditiveBlending||(m.isMeshBasicMaterial&&m.toneMapped===false))){remove.push(o);return;}
@@ -1750,5 +1744,7 @@ function createSectionGallery(key,index=0,full=false){
 function showSectionGallery(key,index){
  let viewer=document.getElementById('sectionGalleryViewer');if(!viewer){viewer=document.createElement('dialog');viewer.id='sectionGalleryViewer';document.body.appendChild(viewer);viewer.addEventListener('click',e=>{if(e.target===viewer)viewer.close();});}viewer.setAttribute('aria-label',sectionPhotoNames[key]+' gallery');viewer.replaceChildren(createSectionGallery(key,index,true));viewer.showModal();
 }
+
+
 </script></body></html>
 
