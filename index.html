@@ -609,11 +609,20 @@ function init(){scene=new THREE.Scene();scene.background=new THREE.Color(0xbad4d
  const ec=document.createElement('canvas');ec.width=1024;ec.height=512;let cx=ec.getContext('2d'),gr=cx.createLinearGradient(0,0,0,512);gr.addColorStop(0,'#6095bc');gr.addColorStop(.45,'#d9ebef');gr.addColorStop(.52,'#f3e5c7');gr.addColorStop(1,'#536648');cx.fillStyle=gr;cx.fillRect(0,0,1024,512);cx.fillStyle='#fff9df';cx.fillRect(210,150,65,50);envTex=new THREE.CanvasTexture(ec);envTex.mapping=THREE.EquirectangularReflectionMapping;envTex.colorSpace=THREE.SRGBColorSpace;const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromEquirectangular(envTex).texture;pmrem.dispose();
  grass.map=makeTexture('grass');stone.map=null;// Land ends at the shoreline: avoid overlapping almost-coplanar land and lake surfaces.
  add(makeGrassyTerrain(),grass,0,-.18,0).castShadow=false;
- // Broad meadow outside the city boundary, tapering down toward the water.
- const meadow=new THREE.RingGeometry(390,410,512,8).rotateX(-Math.PI/2);
+ // A level apron beyond the greenhouses rises into a continuous belt of rolling hills.
+ const meadow=new THREE.RingGeometry(390,650,384,72).rotateX(-Math.PI/2);
  const meadowPositions=meadow.attributes.position;
- for(let i=0;i<meadowPositions.count;i++){const r=Math.hypot(meadowPositions.getX(i),meadowPositions.getZ(i));meadowPositions.setY(i,-.18-2.8*THREE.MathUtils.smoothstep(r,400,410));}
- meadow.computeVertexNormals();add(meadow,grass).castShadow=false;
+ for(let i=0;i<meadowPositions.count;i++){
+  const x=meadowPositions.getX(i),z=meadowPositions.getZ(i),r=Math.hypot(x,z),a=Math.atan2(z,x);
+  const rise=THREE.MathUtils.smoothstep(r,412,475),fall=1-THREE.MathUtils.smoothstep(r,575,650);
+  const ridgeRadius=518+22*Math.sin(a*3+.7)+12*Math.cos(a*5);
+  const ridge=Math.exp(-Math.pow((r-ridgeRadius)/83,2));
+  const peaks=95+48*Math.sin(a*3+.8)+27*Math.cos(a*5-.4)+16*Math.sin(a*8);
+  const rolling=9*Math.sin(x*.025+z*.011)*Math.cos(z*.023);
+  const height=-.18+rise*fall*(Math.max(24,peaks)*ridge+rolling);
+  meadowPositions.setY(i,height);
+ }
+ meadow.computeVertexNormals();const outerHills=add(meadow,grass);outerHills.name='Outer rolling hills';outerHills.castShadow=true;outerHills.receiveShadow=true;
  const platformSide=new THREE.MeshStandardMaterial({color:0x405963,roughness:.5,metalness:.35});
  add(new THREE.CylinderGeometry(390,389,7,512,1,true),platformSide,0,-3.75,0);
  const edgeLight=new THREE.MeshBasicMaterial({color:0x51ceff,toneMapped:false});
