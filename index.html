@@ -114,7 +114,7 @@
  .rotation-hint{display:block;position:fixed;top:88px;left:14px;right:14px;margin:0;text-align:center;font-size:11px;color:#f4f1df;background:#142f28e8;border-radius:8px;padding:5px 8px;pointer-events:none;z-index:24}
  #concept .caption{bottom:max(12px,env(safe-area-inset-bottom));max-width:90vw;text-align:center}
 }
-@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+@media (orientation:landscape) and (max-height:600px){
  header{top:max(8px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right))}
  .brand .mark,.brand small,.status,.city-motto,#minimap,#compass,.viewLabel{display:none}
  .brand strong{font-size:11px}.topbar{padding:4px}.topbar button{padding:6px 8px;font-size:11px}
@@ -131,8 +131,19 @@
  #concept>button:not(.concept-arrow){top:5px;right:max(12px,env(safe-area-inset-right));padding:5px 10px}#concept .caption{bottom:4px;font-size:10px}
  #sectionGalleryViewer,#schoolOverviewImage{width:calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));max-width:100vw;max-height:96dvh}
 }
+
+/* Keep phone navigation and reading as separate views, including after rotation. */
+#minimap,#compass{display:none!important}
+@media (orientation:landscape) and (max-height:600px){
+ #reader[open]~#readerExpand{display:none!important}
+ body:has(#reader[open]) #sidebar{display:none!important}
+ #reader,#reader.philosophy-reader,#reader:not(.philosophy-reader),#reader.reader-expanded,#reader.reader-expanded.philosophy-reader,#reader.reader-expanded:not(.philosophy-reader){top:54px;bottom:62px;max-height:calc(100dvh - 116px);width:calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));margin:0}
+ .reader-head .eyebrow{font-size:8px}#reader .reader-head h2{font-size:20px}#reader .reader-head button{padding:7px 10px}
+ .philosophy-tools{flex-wrap:wrap;gap:8px}.philosophy-tools p{flex:1 1 180px;margin:0}.philosophy-tools button{padding:6px 10px}
+ .bottom{width:max-content;max-width:calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));right:auto}
+ #tooltip{display:none!important}
+}
 </style></head><body>
-<p class="rotation-hint">↻ Turn your phone sideways for wider images. Enable auto-rotate if needed.</p>
 <main id="scene" tabindex="0" aria-label="Interactive city. Drag to orbit, scroll to zoom, right drag to pan. W A S D move the camera, Shift moves faster. Arrow keys orbit, plus and minus zoom."></main>
 <header><div class="brand"><div class="mark">✳</div><div><strong>THE ANDROMEDA PROJECT</strong><small>ANDROMEDA · EIGHT RINGS · 02</small></div></div><button id="reference" class="concept-launch">Concept image</button><div class="topbar panel"><span class="status">EXPLORABLE CONCEPT</span><button id="mobileToggle">Systems</button><button id="export">Export 4K ↗</button></div></header>
 <aside class="sidebar panel" id="sidebar"><div class="intro"><button id="philosophyBanner" type="button" aria-label="Open or close Philosophy of Andromeda" aria-controls="reader" aria-expanded="false"><img src="images/philosophy-sidebar-banner.png" alt="Philosophy of Andromeda"></button></div><nav class="systems" aria-label="City systems" id="systems"></nav><details class="navigation-help"><summary>Navigation help</summary><div><b>Explore at your own pace</b><br>Click the city, then WASD to move · Shift for faster movement<br>Drag to orbit · Scroll to zoom · Right-drag to pan<br>Click a building to inspect · H to return home</div></details><div class="sidebar-foot"><span id="buildingCount">Building the city…</span><span>DAYLIGHT CITY</span></div></aside>
@@ -989,14 +1000,17 @@ function makeUI(){
  $('buildingCount').textContent=buildings.length+' structures · 8 rings';
 }
 
-function applySystem(key){if(key==='philosophy'){openPhilosophyReader();return;}active=key;activeSub=-1;selected=null;subMarker.visible=false;const visualKey=key==='housing2'?'housing':key;Object.entries(overlays).forEach(([k,g])=>g.visible=!underground&&k===visualKey);document.querySelectorAll('[data-system]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.system===key));renderInfo();$('info').scrollTop=0;drawMap();if(innerWidth<761){$('sidebar').classList.remove('open');$('info').classList.remove('open')}}
+function applySystem(key){if(key==='philosophy'){openPhilosophyReader();return;}active=key;activeSub=-1;selected=null;subMarker.visible=false;const visualKey=key==='housing2'?'housing':key;Object.entries(overlays).forEach(([k,g])=>g.visible=!underground&&k===visualKey);document.querySelectorAll('[data-system]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.system===key));renderInfo();$('info').scrollTop=0;drawMap();if(phoneLayout()){$('sidebar').classList.remove('open');$('info').classList.remove('open')}}
 function chooseSub(i){activeSub=i;const b=buildings.find(b=>b.system===active&&b.subIndex===i);if(b&&!underground){selected=b;subMarker.position.set(b.x/6.3,(b.h+2)/2.1,b.z/6.3);subMarker.visible=true;focusOn([b.x,b.z],Math.max(160,b.h*3.2,b.w*3.2,b.d*3.2))}else{subMarker.visible=false;selected=null}renderInfo();$('info').scrollTop=0;}
 function renderInfo(){openReader(active,activeSub);}
 function combinedDescription(item){
  if(!item.why)return item.detail||'';
  const seen=new Set();return [item.detail,item.why].filter(Boolean).flatMap(t=>String(t).split(/(?<=[.!?])\s+/)).filter(t=>{const key=t.trim().toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).reduce((groups,sentence)=>{if(!groups.length||groups[groups.length-1].length+sentence.length>430)groups.push(sentence);else groups[groups.length-1]+=' '+sentence;return groups;},[]).join('\n\n');
 }
+function phoneLayout(){return innerWidth<=760||matchMedia('(orientation:landscape) and (max-height:600px)').matches;}
+function closePhoneNavigation(){if(phoneLayout()){$('sidebar').classList.remove('open');$('info').classList.remove('open');$('tooltip').style.display='none';}}
 function openReader(key,subIndex=-1){
+ closePhoneNavigation();
  if(key==='philosophy'){openPhilosophyReader();return;}
  if($('reader').open)$('reader').close();$('reader').classList.remove('philosophy-reader');const s=systems[key],item=s.subs[subIndex];
  $('readerTitle').textContent=item?item.name:s.name;$('readerTag').textContent=s.tag;
@@ -1088,13 +1102,13 @@ const conceptPhotos=[{"src":"images/city-overview-guide.png","alt":"Andromeda ci
  }
  $('reference').onclick=()=>openConceptGallery(0);
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('info').classList.remove('open');$('sidebar').classList.remove('open');}});
- $('mobileToggle').onclick=()=>{$('sidebar').classList.toggle('open');$('info').classList.remove('open')};
+ $('mobileToggle').onclick=()=>{if(phoneLayout()&&$('reader').open)$('reader').close();$('sidebar').classList.toggle('open');$('info').classList.remove('open');$('tooltip').style.display='none'};
  $('minimap').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();desiredTarget.set((e.clientX-r.left-r.width/2)/r.width*650,0,(e.clientY-r.top-r.height/2)/r.height*650);desiredRadius=185;desiredPhi=.7;plan=false;$('plan').setAttribute('aria-pressed',false)};addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});el.addEventListener('webglcontextlost',e=>{e.preventDefault();toast('Graphics context interrupted. Reload the file to restore the city.')});
 }
 const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();function pick(e){const r=renderer.domElement.getBoundingClientRect();mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(underground?[]:pickables,false);return hits[0]?.object.userData.building}
 let hoverTime=0;function hover(e){if(performance.now()-hoverTime<80)return;hoverTime=performance.now();const b=pick(e),tip=$('tooltip');if(b){tip.textContent=b.name+' · '+b.floors+' floor'+(b.floors>1?'s':'');tip.style.display='block';tip.style.left=Math.min(innerWidth-250,e.clientX+15)+'px';tip.style.top=Math.min(innerHeight-50,e.clientY+15)+'px';renderer.domElement.style.cursor='pointer'}else{tip.style.display='none';renderer.domElement.style.cursor='grab'}}
 async function export4k(){const b=$('export');b.disabled=true;b.textContent='Rendering…';await new Promise(r=>setTimeout(r,60));const oldRatio=renderer.getPixelRatio(),oldAspect=camera.aspect;try{renderer.setPixelRatio(1);renderer.setSize(3840,2160,false);camera.aspect=3840/2160;camera.updateProjectionMatrix();updateSunShadows();renderer.render(scene,camera);const blob=await new Promise(r=>renderer.domElement.toBlob(r,'image/png'));if(!blob)throw new Error('Image unavailable');const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download='future-society-'+active+'-4k.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast('3840 × 2160 image exported')}catch(e){toast('Export could not complete. Try Balanced detail and export again.')}finally{renderer.setPixelRatio(oldRatio);renderer.setSize(innerWidth,innerHeight);camera.aspect=oldAspect;camera.updateProjectionMatrix();b.disabled=false;b.textContent='Export 4K ↗'}}
-let last=0,mapTick=0;function animate(t=0){requestAnimationFrame(animate);const dt=Math.min((t-last)/1000,.04);last=t;moveCameraWithKeys(dt);if(orbit)desiredTheta+=dt*.06;theta+=(desiredTheta-theta)*.07;phi+=(desiredPhi-phi)*.07;radius+=(desiredRadius-radius)*.07;target.lerp(desiredTarget,.07);camera.position.set(target.x+Math.sin(theta)*Math.sin(phi)*radius,target.y+Math.cos(phi)*radius,target.z+Math.cos(theta)*Math.sin(phi)*radius);camera.lookAt(target.x,target.y+4,target.z);animated.forEach(a=>{if(a.key===active)a.dot.position.copy(a.route.getPointAt((t*.000025+a.offset)%1))});moveSociety(t);animateGardenWater(t);updateWaterReflections(t);updateSunShadows();renderer.render(scene,camera);if(t-mapTick>250){drawMap();mapTick=t}}
+let last=0,mapTick=0;function animate(t=0){requestAnimationFrame(animate);const dt=Math.min((t-last)/1000,.04);last=t;moveCameraWithKeys(dt);if(orbit)desiredTheta+=dt*.075;theta+=(desiredTheta-theta)*.07;phi+=(desiredPhi-phi)*.07;radius+=(desiredRadius-radius)*.07;target.lerp(desiredTarget,.07);camera.position.set(target.x+Math.sin(theta)*Math.sin(phi)*radius,target.y+Math.cos(phi)*radius,target.z+Math.cos(theta)*Math.sin(phi)*radius);camera.lookAt(target.x,target.y+4,target.z);animated.forEach(a=>{if(a.key===active)a.dot.position.copy(a.route.getPointAt((t*.000025+a.offset)%1))});moveSociety(t);animateGardenWater(t);updateWaterReflections(t);updateSunShadows();renderer.render(scene,camera);if(t-mapTick>250){drawMap();mapTick=t}}
 window.cityDebug=()=>({ready,buildings:buildings.length,singleStory:buildings.filter(b=>b.floors===1).length,towers:buildings.filter(b=>b.floors>=20).length,rings:ringEdges,underground,activeSub,active,selected:selected?.name,triangles:renderer?.info.render.triangles,calls:renderer?.info.render.calls,canvas:[renderer?.domElement.width,renderer?.domElement.height]});
 setTimeout(()=>{try{init()}catch(e){console.error(e);$('loading').innerHTML='<div><h2>The city could not finish loading.</h2><p>An error interrupted city setup. The details below identify the problem.</p><p>'+String(e.message).replace(/[<>]/g,'')+'</p></div>'}},80);
 
@@ -1552,6 +1566,7 @@ function addSchoolPonds(waterMat){
 }
 
 function openPhilosophyReader(){
+ closePhoneNavigation();
  if($('reader').open)$('reader').close();
  const s=systems.philosophy;
  $('reader').classList.add('philosophy-reader');
